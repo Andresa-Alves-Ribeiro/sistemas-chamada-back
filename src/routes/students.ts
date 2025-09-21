@@ -8,9 +8,8 @@ const router = Router();
 router.get("/students", async (_req: Request, res: Response) => {
     try {
         const { data, error } = await supabase
-            .from("alunos")
+            .from("students")
             .select("*")
-            .or("excluded.is.null,excluded.eq.false") // Incluir alunos não excluídos ou com excluded null
             .order("name", { ascending: true });
 
         if (error) {
