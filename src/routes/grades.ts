@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { supabase } from "../services/supabaseClient.js";
-import type { Grade } from "../types/grades.js";
+import type { Grade, CreateGrade } from "../types/grades.js";
 import type { Student } from "../types/students.js";
 
 const router = Router();
@@ -84,6 +84,79 @@ router.get("/grades/:id", async (_req: Request, res: Response) => {
         return res.status(500).json({ 
             error: "Erro interno do servidor",
             message: "Erro inesperado ao buscar alunos da turma"
+        });
+    }
+});
+
+// POST /api/grades - Criar nova turma
+router.post("/grades", async (req: Request, res: Response) => {
+    try {
+        const { grade, time }: CreateGrade = req.body;
+
+        if (!grade || !time) {
+            return res.status(400).json({
+                error: "Dados obrigatórios ausentes",
+                message: "Os campos 'grade' e 'time' são obrigatórios"
+            });
+        }
+
+        if (typeof grade !== "string" || typeof time !== "string") {
+            return res.status(400).json({
+                error: "Tipo de dados inválido",
+                message: "Verifique os tipos dos campos: grade (string), time (string)"
+            });
+        }
+
+        const { data: existingGrade, error: checkError } = await supabase
+            .from("grades")
+            .select("*")
+            .eq("grade", grade)
+            .eq("time", time)
+            .single();
+
+        if (checkError && checkError.code !== "PGRST116") {
+            console.error("Erro ao verificar turma existente:", checkError);
+            return res.status(500).json({
+                error: "Erro interno do servidor",
+                message: "Erro ao verificar turma existente"
+            });
+        }
+
+        if (existingGrade) {
+            return res.status(409).json({
+                error: "Turma já existe",
+                message: `Já existe uma turma ${grade} - ${time}`
+            });
+        }
+
+        const { data, error } = await supabase
+            .from("grades")
+            .insert([{
+                grade,
+                time,
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Erro ao criar turma:", error);
+            return res.status(500).json({
+                error: "Erro interno do servidor",
+                message: error.message
+            });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: "Turma criada com sucesso",
+            data: data as Grade
+        });
+
+    } catch (error) {
+        console.error("Erro inesperado:", error);
+        return res.status(500).json({
+            error: "Erro interno do servidor",
+            message: "Erro inesperado ao criar turma"
         });
     }
 });
