@@ -4,7 +4,6 @@ import type { Student } from "../types/students.js";
 
 const router = Router();
 
-// GET /api/students - Buscar todos os alunos
 router.get("/students", async (_req: Request, res: Response) => {
     try {
         const { data, error } = await supabase
@@ -30,6 +29,33 @@ router.get("/students", async (_req: Request, res: Response) => {
         return res.status(500).json({ 
             error: "Erro interno do servidor",
             message: "Erro inesperado ao buscar alunos"
+        });
+    }
+});
+
+router.get("/students/count", async (_req: Request, res: Response) => {
+    try {
+        const { count, error } = await supabase
+            .from("students")
+            .select("*", { count: "exact", head: true });
+
+        if (error) {
+            console.error("Erro ao contar alunos:", error);
+            return res.status(500).json({ 
+                error: "Erro interno do servidor", 
+                message: error.message 
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            totalStudents: count || 0
+        });
+    } catch (error) {
+        console.error("Erro inesperado:", error);
+        return res.status(500).json({ 
+            error: "Erro interno do servidor",
+            message: "Erro inesperado ao contar alunos"
         });
     }
 });
