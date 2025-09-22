@@ -281,8 +281,6 @@ router.put("/grades/:id", async (req: Request, res: Response) => {
 
             if (studentsUpdateError) {
                 console.error("Erro ao atualizar referências dos estudantes:", studentsUpdateError);
-                // Não retornar erro aqui, pois a turma já foi atualizada com sucesso
-                // Apenas logar o erro para monitoramento
             }
         }
 
@@ -297,6 +295,81 @@ router.put("/grades/:id", async (req: Request, res: Response) => {
         return res.status(500).json({
             error: "Erro interno do servidor",
             message: "Erro inesperado ao atualizar turma"
+        });
+    }
+});
+
+router.delete("/grades/:id", async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const { data: existingGrade, error: fetchError } = await supabase
+            .from("grades")
+            .select("*")
+            .eq("id", id)
+            .single();
+
+        if (fetchError) {
+            console.error("Erro ao buscar turma:", fetchError);
+            return res.status(500).json({
+                error: "Erro interno do servidor",
+                message: "Erro ao buscar turma"
+            });
+        }
+
+        if (!existingGrade) {
+            return res.status(404).json({
+                error: "Turma não encontrada",
+                message: `Turma com ID ${id} não foi encontrada`
+            });
+        }
+
+        const { data: studentsData, error: studentsError } = await supabase
+            .from("students")
+            .select("id, name")
+            .eq("grade", existingGrade.grade)
+            .eq("time", existingGrade.time);
+
+        if (studentsError) {
+            console.error("Erro ao verificar alunos da turma:", studentsError);
+            return res.status(500).json({
+                error: "Erro interno do servidor",
+                message: "Erro ao verificar alunos da turma"
+            });
+        }
+
+        if (studentsData && studentsData.length > 0) {
+            return res.status(409).json({
+                error: "Não é possível deletar a turma",
+                message: `A turma ${existingGrade.grade} - ${existingGrade.time} possui ${studentsData.length} aluno(s) cadastrado(s). Remova os alunos antes de deletar a turma.`,
+                students: studentsData
+            });
+        }
+
+        const { error: deleteError } = await supabase
+            .from("grades")
+            .delete()
+            .eq("id", id);
+
+        if (deleteError) {
+            console.error("Erro ao deletar turma:", deleteError);
+            return res.status(500).json({
+                error: "Erro interno do servidor",
+                message: deleteError.message
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Turma ${existingGrade.grade} - ${existingGrade.time} deletada com sucesso`,
+            deletedGrade: existingGrade
+        });
+
+    } catch (error) {
+        console.error("Erro inesperado:", error);
+        return res.status(500).json({
+            error: "Erro interno do servidor",
+            message: "Erro inesperado ao deletar turma"
         });
     }
 });
